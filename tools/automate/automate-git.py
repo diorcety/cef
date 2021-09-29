@@ -29,10 +29,10 @@ else:
 # Default URLs.
 ##
 
-depot_tools_url = 'https://chromium.googlesource.com/chromium/tools/depot_tools.git'
+depot_tools_url = 'https://github.com/diorcety/depot_tools'
 depot_tools_archive_url = 'https://storage.googleapis.com/chrome-infra/depot_tools.zip'
 
-cef_git_url = 'https://bitbucket.org/chromiumembedded/cef.git'
+cef_git_url = 'https://github.com/diorcety/cef'
 
 chromium_channel_json_url = 'https://omahaproxy.appspot.com/all.json'
 
@@ -283,7 +283,7 @@ def apply_patch(name):
 
 
 def apply_deps_patch():
-  """ Patch the Chromium DEPS file before `gclient sync` if necessary. """
+  """ Patch the Chromium DEPS file before `gclient sync --no-history` if necessary. """
   deps_path = os.path.join(chromium_src_dir, deps_file)
   if os.path.isfile(deps_path):
     msg("Chromium DEPS file: %s" % (deps_path))
@@ -1192,7 +1192,7 @@ if not options.nocefupdate and os.path.exists(cef_dir):
 
   if not cef_checkout_new:
     # Fetch updated sources.
-    run('%s fetch' % (git_exe), cef_dir, depot_tools_dir)
+    run('%s fetch --depth=1 origin %s' % (git_exe, cef_branch), cef_dir, depot_tools_dir)
 
   cef_desired_hash = get_git_hash(cef_dir, cef_checkout)
   cef_checkout_changed = cef_checkout_new or force_change or \
@@ -1287,7 +1287,7 @@ if not os.path.exists(gclient_file) or options.forceconfig:
 # Initial Chromium checkout.
 if not options.nochromiumupdate and not os.path.exists(chromium_src_dir):
   chromium_checkout_new = True
-  run("gclient sync --nohooks --with_branch_heads --jobs 16", \
+  run("gclient sync --no-history --nohooks --with_branch_heads --jobs 16", \
       chromium_dir, depot_tools_dir)
 else:
   chromium_checkout_new = False
@@ -1303,9 +1303,9 @@ if os.path.exists(chromium_src_dir):
 # local history.
 if not options.nochromiumupdate and os.path.exists(chromium_src_dir):
   # Fetch updated sources.
-  run("%s fetch" % (git_exe), chromium_src_dir, depot_tools_dir)
+  run("%s fetch --depth=1 origin %s:%s" % (git_exe, build_compat_versions['chromium_checkout'], build_compat_versions['chromium_checkout']), chromium_src_dir, depot_tools_dir)
   # Also fetch tags, which are required for release branch builds.
-  run("%s fetch --tags" % (git_exe), chromium_src_dir, depot_tools_dir)
+  #run("%s fetch --tags" % (git_exe), chromium_src_dir, depot_tools_dir)
 
 # Determine the Chromium checkout options required by CEF.
 chromium_compat_version = build_compat_versions['chromium_checkout']
@@ -1350,13 +1350,12 @@ if options.forceclean and os.path.exists(out_src_dir):
 # directory. It will be moved back from the download directory later.
 if os.path.exists(out_src_dir):
   old_branch = read_branch_config_file(out_src_dir)
-  if old_branch != '' and (chromium_checkout_changed or
-                           old_branch != cef_branch):
+  if old_branch != '' and (chromium_checkout_changed or cef_checkout_changed):
     old_out_dir = os.path.join(download_dir, 'out_' + old_branch)
     move_directory(out_src_dir, old_out_dir)
 
 # Update the Chromium checkout.
-if chromium_checkout_changed:
+if chromium_checkout_changed or cef_checkout_changed:
   if not chromium_checkout_new and not options.fastupdate:
     if options.forceclean and options.forcecleandeps:
       # Remove all local changes including third-party git checkouts managed by
@@ -1375,7 +1374,7 @@ if chromium_checkout_changed:
   apply_deps_patch()
 
   # Update third-party dependencies including branch/tag information.
-  run("gclient sync %s--nohooks --with_branch_heads --jobs 16" % \
+  run("gclient sync --no-history %s--nohooks --with_branch_heads --jobs 16" % \
       ('--reset ' if discard_local_changes else ''), chromium_dir, depot_tools_dir)
 
   # Patch the Chromium runhooks scripts if necessary.
@@ -1384,7 +1383,7 @@ if chromium_checkout_changed:
   # Runs hooks for files that have been modified in the local working copy.
   run("gclient runhooks --jobs 16", chromium_dir, depot_tools_dir)
 
-  # Delete the src/out directory created by `gclient sync`.
+  # Delete the src/out directory created by `gclient sync --no-history`.
   delete_directory(out_src_dir)
 
 if cef_dir == cef_src_dir:
