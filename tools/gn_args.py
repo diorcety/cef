@@ -548,16 +548,7 @@ def GetAllPlatformConfigs(build_args):
 
   if platform == 'linux':
     use_sysroot = GetArgValue(args, 'use_sysroot')
-    if use_sysroot:
-      # Only generate configurations for sysroots that have been installed.
-      for cpu in ('x86', 'x64', 'arm', 'arm64'):
-        if LinuxSysrootExists(cpu):
-          supported_cpus.append(cpu)
-        else:
-          msg('Not generating %s configuration due to missing sysroot directory'
-              % cpu)
-    else:
-      supported_cpus = ['x64']
+    supported_cpus.append(GetArgValue(args, 'target_cpu'))
   elif platform in ('windows', 'mac'):
     if machine == 'amd64' or os.environ.get('CEF_ENABLE_AMD64', '') == '1':
       supported_cpus.append('x64')
