@@ -1,0 +1,34 @@
+diff --git build/config/compiler/BUILD.gn build/config/compiler/BUILD.gn
+index 219a2be0e1..bda686cbf6 100644
+--- build/config/compiler/BUILD.gn
++++ build/config/compiler/BUILD.gn
+@@ -1253,7 +1253,7 @@ config("compiler_deterministic") {
+     # different build directory like "out/feature_a" and "out/feature_b" if
+     # we build same files with same compile flag.
+     # Other paths are already given in relative, no need to normalize them.
+-    if (is_nacl) {
++    if (true) {
+       # TODO(https://crbug.com/1231236): Use -ffile-compilation-dir= here.
+       cflags += [
+         "-Xclang",
+@@ -1636,6 +1636,11 @@ config("default_warnings") {
+       # which we no longer use. Check if it makes sense to remove
+       # this as well. http://crbug.com/316352
+       "-Wno-unneeded-internal-declaration",
++
++      # Disable unknown warnings, since system clang may not have
++      # backported newer warning yet unlike internal clang that
++      # chromium uses.
++      "-Wno-unknown-warning-option",
+     ]
+ 
+     # use_xcode_clang only refers to the iOS toolchain, host binaries use
+@@ -1952,7 +1957,7 @@ config("no_exceptions") {
+ # See: //docs/static_initializers.md
+ # See: https://groups.google.com/a/chromium.org/d/topic/chromium-dev/B9Q5KTD7iCo/discussion
+ config("wglobal_constructors") {
+-  if (is_clang) {
++  if (false) {
+     cflags = [ "-Wglobal-constructors" ]
+   }
+ }

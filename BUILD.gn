@@ -1203,7 +1203,8 @@ static_library("libcef_static") {
           sources += [
             # Support for UI input events.
             # Part of //ui/base:test_support which is testingonly.
-            "//ui/aura/test/ui_controls_factory_ozone.cc",
+            "//ui/aura/test/ui_controls_factory_aura_linux.cc",
+            "//ui/aura/test/ui_controls_ozone.cc",
             # Part of //ui//events:test_support which is testingonly.
             "//ui/events/test/events_test_utils.cc"
           ]

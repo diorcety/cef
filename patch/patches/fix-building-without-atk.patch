@@ -1,0 +1,21 @@
+diff --git build/config/ui.gni build/config/ui.gni
+index 55478b02cd..52285ee3c3 100644
+--- build/config/ui.gni
++++ build/config/ui.gni
+@@ -33,13 +33,13 @@ declare_args() {
+   toolkit_views = is_mac || is_win || is_linux || is_chromeos || is_fuchsia
+ 
+   use_glib = is_linux && !is_chromecast
++
++  use_atk = is_linux && !is_chromecast &&
++            current_toolchain == default_toolchain
+ }
+ 
+ assert(!use_glib || (is_linux && !is_chromecast))
+ 
+-use_atk = is_linux && !is_chromecast && use_glib &&
+-          current_toolchain == default_toolchain
+-
+ # Whether using Xvfb to provide a display server for a test might be
+ # necessary.
+ use_xvfb_in_this_config =

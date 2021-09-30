@@ -1,0 +1,79 @@
+diff --git base/compiler_specific.h base/compiler_specific.h
+index d53387f3db..c908eef2a8 100644
+--- base/compiler_specific.h
++++ base/compiler_specific.h
+@@ -365,7 +365,7 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
+ #endif  // defined(__clang_analyzer__)
+ 
+ // Use nomerge attribute to disable optimization of merging multiple same calls.
+-#if defined(__clang__) && __has_attribute(nomerge)
++#if defined(__clang__) && (__clang_major__ >= 12) && __has_attribute(nomerge)
+ #define NOMERGE [[clang::nomerge]]
+ #else
+ #define NOMERGE
+diff --git chrome/browser/ui/views/apps/app_dialog/app_uninstall_dialog_view.cc chrome/browser/ui/views/apps/app_dialog/app_uninstall_dialog_view.cc
+index 78b25916a8..83bb3aca0e 100644
+--- chrome/browser/ui/views/apps/app_dialog/app_uninstall_dialog_view.cc
++++ chrome/browser/ui/views/apps/app_dialog/app_uninstall_dialog_view.cc
+@@ -326,16 +326,20 @@ void AppUninstallDialogView::InitializeViewWithMessage(
+ #endif
+ 
+ void AppUninstallDialogView::OnDialogCancelled() {
++#if BUILDFLAG(IS_CHROMEOS_ASH)
+   uninstall_dialog()->OnDialogClosed(false /* uninstall */,
+                                      false /* clear_site_data */,
+                                      false /* report_abuse */);
++#endif
+ }
+ 
+ void AppUninstallDialogView::OnDialogAccepted() {
++#if BUILDFLAG(IS_CHROMEOS_ASH)
+   const bool clear_site_data =
+       clear_site_data_checkbox_ && clear_site_data_checkbox_->GetChecked();
+   const bool report_abuse_checkbox =
+       report_abuse_checkbox_ && report_abuse_checkbox_->GetChecked();
+   uninstall_dialog()->OnDialogClosed(true /* uninstall */, clear_site_data,
+                                      report_abuse_checkbox);
++#endif
+ }
+diff --git chrome/browser/media/router/BUILD.gn chrome/browser/media/router/BUILD.gn
+index 8cba079ff6..7147e51cff 100644
+--- chrome/browser/media/router/BUILD.gn
++++ chrome/browser/media/router/BUILD.gn
+@@ -3,6 +3,7 @@
+ # found in the LICENSE file.
+ 
+ import("//chrome/browser/media/router/features.gni")
++import("//chrome/common/features.gni")
+ import("//extensions/buildflags/buildflags.gni")
+ import("//testing/libfuzzer/fuzzer_test.gni")
+ import("//testing/test.gni")
+@@ -164,7 +165,7 @@ static_library("router") {
+       deps += [ "//chrome/installer/util:with_no_strings" ]
+     }
+ 
+-    if (enable_openscreen) {
++    if (enable_openscreen && enable_service_discovery) {
+       sources += [
+         "providers/openscreen/discovery/open_screen_listener.cc",
+         "providers/openscreen/discovery/open_screen_listener.h",
+diff --git sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
+index a8f860fcf0..1369c6304e 100644
+--- sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
++++ sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
+@@ -444,10 +444,13 @@ ResultExpr RestrictPtrace() {
+   return Switch(request)
+       .CASES((
+ #if !defined(__aarch64__)
+-                 PTRACE_GETREGS, PTRACE_GETFPREGS, PTRACE_GET_THREAD_AREA,
++                 PTRACE_GETREGS, PTRACE_GETFPREGS,
++#if defined(TRACE_GET_THREAD_AREA)
++                 PTRACE_GET_THREAD_AREA,
++#endif
+                  PTRACE_GETREGSET,
+ #endif
+-#if defined(__arm__)
++#if defined(__arm__)  && defined (PTRACE_GETVFPREGS)
+                  PTRACE_GETVFPREGS,
+ #endif
+                  PTRACE_PEEKDATA, PTRACE_ATTACH, PTRACE_DETACH),

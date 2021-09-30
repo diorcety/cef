@@ -1,0 +1,77 @@
+diff --git build/toolchain/linux/unbundle/BUILD.gn build/toolchain/linux/unbundle/BUILD.gn
+index 4719d540b0..c5a9301d46 100644
+--- build/toolchain/linux/unbundle/BUILD.gn
++++ build/toolchain/linux/unbundle/BUILD.gn
+@@ -17,8 +17,8 @@ gcc_toolchain("default") {
+   extra_ldflags = getenv("LDFLAGS")
+ 
+   toolchain_args = {
+-    current_cpu = current_cpu
+-    current_os = current_os
++    current_cpu = target_cpu
++    current_os = target_os
+   }
+ }
+ 
+@@ -35,7 +35,7 @@ gcc_toolchain("host") {
+   extra_ldflags = getenv("BUILD_LDFLAGS")
+ 
+   toolchain_args = {
+-    current_cpu = current_cpu
+-    current_os = current_os
++    current_cpu = host_cpu
++    current_os = host_os
+   }
+ }
+diff --git native_client/src/trusted/service_runtime/linux/BUILD.gn native_client/src/trusted/service_runtime/linux/BUILD.gn
+index cf2ea6cb0..20ce0d583 100644
+--- native_client/src/trusted/service_runtime/linux/BUILD.gn
++++ native_client/src/trusted/service_runtime/linux/BUILD.gn
+@@ -19,7 +19,9 @@ here = get_label_info(".", "dir")
+ bootstrap_toolchain = here + "/toolchain:nacl_bootstrap_" + target_cpu
+ compiler = "g++"
+ 
+-if (default_toolchain == "//build/toolchain/cros:target") {
++if (default_toolchain == "//build/toolchain/linux/unbundle:default") {
++  compiler = getenv("CXX")
++} else if (default_toolchain == "//build/toolchain/cros:target") {
+   import("//build/toolchain/cros_toolchain.gni")
+   bootstrap_toolchain = "//build/toolchain/cros:nacl_bootstrap"
+   compiler = cros_target_cxx
+diff --git native_client/src/trusted/service_runtime/linux/ld_bfd.py native_client/src/trusted/service_runtime/linux/ld_bfd.py
+index c727e9618..6d0d3b05e 100755
+--- native_client/src/trusted/service_runtime/linux/ld_bfd.py
++++ native_client/src/trusted/service_runtime/linux/ld_bfd.py
+@@ -41,7 +41,8 @@ def GccPrintName(cxx_bin, what, switch, defresult):
+ 
+ 
+ def FindLDBFD(cxx_bin):
+-  ld = GccPrintName(cxx_bin, 'ld', '-print-prog-name=ld', 'ld')
++  ld_name=os.path.basename(os.getenv('LD', 'ld'))
++  ld = GccPrintName(cxx_bin, ld_name, '-print-prog-name='+ld_name, ld_name)
+   ld_bfd = PathTo(ld + ".bfd")
+   if os.access(ld_bfd, os.X_OK):
+     return ld_bfd
+@@ -49,7 +50,8 @@ def FindLDBFD(cxx_bin):
+ 
+ 
+ def FindLibgcc(cxx_bin):
+-  return GccPrintName(cxx_bin, 'libgcc', '-print-libgcc-file-name', None)
++  ldflags=os.getenv('LDFLAGS', '')
++  return GccPrintName(cxx_bin, 'libgcc', ldflags + ' -print-libgcc-file-name', None)
+ 
+ 
+ def main(args):
+diff --git native_client/src/trusted/service_runtime/linux/nacl_bootstrap_munge_phdr.py native_client/src/trusted/service_runtime/linux/nacl_bootstrap_munge_phdr.py
+index 0da66f848..38a27b855 100755
+--- native_client/src/trusted/service_runtime/linux/nacl_bootstrap_munge_phdr.py
++++ native_client/src/trusted/service_runtime/linux/nacl_bootstrap_munge_phdr.py
+@@ -219,7 +219,7 @@ def RunMain(args):
+     phdr = elf.GetPhdr(args.phdr_index)
+     if phdr.p_type != Elf.PT_LOAD:
+       raise Error('Invalid segment number; not PT_LOAD (%d)' % phdr.p_type)
+-    if phdr.p_filesz != 0:
++    if phdr.p_filesz != 0 and phdr.p_filesz != phdr.p_memsz:
+       raise Error("Program header %d has nonzero p_filesz" % args.phdr_index)
+     phdr.p_filesz = phdr.p_memsz
+     elf.SetPhdr(args.phdr_index, phdr)

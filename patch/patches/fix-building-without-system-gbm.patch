@@ -1,0 +1,20 @@
+diff --git ui/gfx/linux/BUILD.gn ui/gfx/linux/BUILD.gn
+index 3d02d93c37..4cb452fe5d 100644
+--- ui/gfx/linux/BUILD.gn
++++ ui/gfx/linux/BUILD.gn
+@@ -39,11 +39,14 @@ source_set("gbm") {
+     "//base:base",
+     "//build/config/linux/libdrm",
+     "//skia",
+-    "//third_party/minigbm",
+     "//ui/gfx:buffer_types",
+     "//ui/gfx:memory_buffer",
+     "//ui/gfx/geometry:geometry",
+   ]
++
++  public_deps = [
++    "//third_party/minigbm",
++  ]
+ }
+ 
+ if (use_x11 || ozone_platform_x11) {

@@ -1,0 +1,261 @@
+diff --git build/compiled_action.gni build/compiled_action.gni
+index 7e25a0b6fc..5b41922b9a 100644
+--- build/compiled_action.gni
++++ build/compiled_action.gni
+@@ -65,6 +65,8 @@
+ # about this target in the host toolchain". Usually this is what you want, and
+ # saves unnecessarily compiling your tool for the target platform. But if you
+ # need a target build of your tool as well, just leave off the if statement.
++#
++import("//build/config/sysroot.gni")
+ 
+ if (host_os == "win") {
+   _host_executable_suffix = ".exe"
+@@ -112,11 +114,13 @@ template("compiled_action") {
+         get_label_info(host_tool, "root_out_dir") + "/" +
+         get_label_info(host_tool, "name") + _host_executable_suffix
+ 
++    library_path = rebase_path(sysroot + "/" + system_libdir, root_build_dir) + ":" + rebase_path(sysroot + "/usr/" + system_libdir, root_build_dir)
++
+     deps += [ host_tool ]
+ 
+     # The script takes as arguments the binary to run, and then the arguments
+     # to pass it.
+-    args = [ rebase_path(host_executable, root_build_dir) ] + invoker.args
++    args = [ library_path , rebase_path(host_executable, root_build_dir) ] + invoker.args
+   }
+ }
+ 
+@@ -158,10 +162,12 @@ template("compiled_action_foreach") {
+         get_label_info(host_tool, "root_out_dir") + "/" +
+         get_label_info(host_tool, "name") + _host_executable_suffix
+ 
++    library_path = rebase_path(sysroot + "/" + system_libdir, root_build_dir) + ":" + rebase_path(sysroot + "/usr/" + system_libdir, root_build_dir)
++
+     deps += [ host_tool ]
+ 
+     # The script takes as arguments the binary to run, and then the arguments
+     # to pass it.
+-    args = [ rebase_path(host_executable, root_build_dir) ] + invoker.args
++    args = [ library_path, rebase_path(host_executable, root_build_dir) ] + invoker.args
+   }
+ }
+diff --git build/config/linux/pkg_config.gni build/config/linux/pkg_config.gni
+index 428e44ac0a..9f5addb3a8 100644
+--- build/config/linux/pkg_config.gni
++++ build/config/linux/pkg_config.gni
+@@ -34,17 +34,6 @@ declare_args() {
+ 
+   # A optional pkg-config wrapper to use for tools built on the host.
+   host_pkg_config = ""
+-
+-  # CrOS systemroots place pkgconfig files at <systemroot>/usr/share/pkgconfig
+-  # and one of <systemroot>/usr/lib/pkgconfig or <systemroot>/usr/lib64/pkgconfig
+-  # depending on whether the systemroot is for a 32 or 64 bit architecture.
+-  #
+-  # When build under GYP, CrOS board builds specify the 'system_libdir' variable
+-  # as part of the GYP_DEFINES provided by the CrOS emerge build or simple
+-  # chrome build scheme. This variable permits controlling this for GN builds
+-  # in similar fashion by setting the `system_libdir` variable in the build's
+-  # args.gn file to 'lib' or 'lib64' as appropriate for the target architecture.
+-  system_libdir = "lib"
+ }
+ 
+ pkg_config_script = "//build/config/linux/pkg-config.py"
+diff --git build/config/sysroot.gni build/config/sysroot.gni
+index 18d2d57362..c2a105c8b6 100644
+--- build/config/sysroot.gni
++++ build/config/sysroot.gni
+@@ -15,6 +15,17 @@ declare_args() {
+   # The path to directory containing linux sysroot images.
+   target_sysroot_dir = "//build/linux"
+ 
++  # CrOS systemroots place pkgconfig files at <systemroot>/usr/share/pkgconfig
++  # and one of <systemroot>/usr/lib/pkgconfig or <systemroot>/usr/lib64/pkgconfig
++  # depending on whether the systemroot is for a 32 or 64 bit architecture.
++  #
++  # When build under GYP, CrOS board builds specify the 'system_libdir' variable
++  # as part of the GYP_DEFINES provided by the CrOS emerge build or simple
++  # chrome build scheme. This variable permits controlling this for GN builds
++  # in similar fashion by setting the `system_libdir` variable in the build's
++  # args.gn file to 'lib' or 'lib64' as appropriate for the target architecture.
++  target_system_libdir = "lib"
++
+   # The path of the sysroot for the current toolchain. If empty, default
+   # sysroot is used.
+   sysroot = ""
+@@ -24,12 +35,24 @@ declare_args() {
+   use_sysroot = current_cpu == "x86" || current_cpu == "x64" ||
+                 current_cpu == "arm" || current_cpu == "arm64" ||
+                 current_cpu == "mipsel" || current_cpu == "mips64el"
++
++  # CrOS systemroots place pkgconfig files at <systemroot>/usr/share/pkgconfig
++  # and one of <systemroot>/usr/lib/pkgconfig or <systemroot>/usr/lib64/pkgconfig
++  # depending on whether the systemroot is for a 32 or 64 bit architecture.
++  #
++  # When build under GYP, CrOS board builds specify the 'system_libdir' variable
++  # as part of the GYP_DEFINES provided by the CrOS emerge build or simple
++  # chrome build scheme. This variable permits controlling this for GN builds
++  # in similar fashion by setting the `system_libdir` variable in the build's
++  # args.gn file to 'lib' or 'lib64' as appropriate for the target architecture.
++  system_libdir = "lib"
+ }
+ 
+ if (sysroot == "") {
+   if (current_os == target_os && current_cpu == target_cpu &&
+       target_sysroot != "") {
+     sysroot = target_sysroot
++    system_libdir = target_system_libdir
+   } else if (is_android) {
+     import("//build/config/android/config.gni")
+ 
+@@ -40,8 +63,10 @@ if (sysroot == "") {
+     # during gclient runhooks.
+     if (current_cpu == "x64") {
+       sysroot = "$target_sysroot_dir/debian_sid_amd64-sysroot"
++      system_libdir = "lib/x86_64-linux-gnu"
+     } else if (current_cpu == "x86") {
+       sysroot = "$target_sysroot_dir/debian_sid_i386-sysroot"
++      system_libdir = "lib/i386-linux-gnu"
+     } else if (current_cpu == "mipsel") {
+       sysroot = "$target_sysroot_dir/debian_sid_mips-sysroot"
+     } else if (current_cpu == "mips64el") {
+diff --git build/gn_run_binary.py build/gn_run_binary.py
+index d7e2926fa4..0fd0506f12 100644
+--- build/gn_run_binary.py
++++ build/gn_run_binary.py
+@@ -14,23 +14,28 @@ import os
+ import subprocess
+ import sys
+ 
++# library_path
++library_path = sys.argv[1]
++env = dict(os.environ)
++env['LD_LIBRARY_PATH'] = os.pathsep.join([library_path] + env.get('LD_LIBRARY_PATH', '').split(os.pathsep))
++
+ # This script is designed to run binaries produced by the current build. We
+ # may prefix it with "./" to avoid picking up system versions that might
+ # also be on the path.
+-path = sys.argv[1]
++path = sys.argv[2]
+ if not os.path.isabs(path):
+   path = './' + path
+ 
+ # The rest of the arguments are passed directly to the executable.
+-args = [path] + sys.argv[2:]
++args = [path] + sys.argv[3:]
+ 
+-ret = subprocess.call(args)
++ret = subprocess.call(args, env=env)
+ if ret != 0:
+   if ret <= -100:
+     # Windows error codes such as 0xC0000005 and 0xC0000409 are much easier to
+     # recognize and differentiate in hex. In order to print them as unsigned
+     # hex we need to add 4 Gig to them.
+-    print('%s failed with exit code 0x%08X' % (sys.argv[1], ret + (1 << 32)))
++    print('%s failed with exit code 0x%08X' % (sys.argv[2], ret + (1 << 32)))
+   else:
+-    print('%s failed with exit code %d' % (sys.argv[1], ret))
++    print('%s failed with exit code %d' % (sys.argv[2], ret))
+ sys.exit(ret)
+diff --git chrome/installer/linux/BUILD.gn chrome/installer/linux/BUILD.gn
+index 4d9054ea8c..08c6247bc3 100644
+--- chrome/installer/linux/BUILD.gn
++++ chrome/installer/linux/BUILD.gn
+@@ -397,7 +397,9 @@ template("linux_package") {
+     inputs = packaging_files
+     outputs = [ "$root_out_dir/${package}-${channel}_${chrome_version_full}-1_${deb_arch}.deb" ]
+ 
++    library_path = rebase_path(sysroot + "/" + system_libdir, root_build_dir) + ":" + rebase_path(sysroot + "/usr/" + system_libdir, root_build_dir)
+     args = [
++      library_path,
+       rebase_path("$root_out_dir/installer/debian/build.sh", root_build_dir),
+       "-a",
+       deb_arch,
+@@ -446,7 +448,9 @@ template("linux_package") {
+       inputs = packaging_files
+       outputs = [ "$root_out_dir/${package}-${channel}-${chrome_version_full}-1.${rpm_arch}.rpm" ]
+ 
++      library_path = rebase_path(sysroot + "/" + system_libdir, root_build_dir) + ":" + rebase_path(sysroot + "/usr/" + system_libdir, root_build_dir)
+       args = [
++        library_path,
+         rebase_path("$root_out_dir/installer/rpm/build.sh", root_build_dir),
+         "-a",
+         rpm_arch,
+@@ -495,7 +499,10 @@ template("linux_package") {
+         } else {
+           assert(false, "Linux installer not configured for this architecture.")
+         }
++
++        library_path = rebase_path(sysroot + "/" + system_libdir, root_build_dir) + ":" + rebase_path(sysroot + "/usr/" + system_libdir, root_build_dir)
+         args = [
++          library_path,
+           rebase_path("snap/build.sh", root_build_dir),
+           package,
+           channel,
+diff --git fuchsia/cipd/BUILD.gn fuchsia/cipd/BUILD.gn
+index 3fbfbe3b43..75eaf375c7 100644
+--- fuchsia/cipd/BUILD.gn
++++ fuchsia/cipd/BUILD.gn
+@@ -185,7 +185,10 @@ action("strip_chromedriver_binary") {
+     prog_name,
+   ]
+   outputs = [ _stripped_chromedriver_file ]
++
++  library_path = rebase_path(sysroot + "/" + system_libdir, root_build_dir) + ":" + rebase_path(sysroot + "/usr/" + system_libdir, root_build_dir)
+   args = [
++    library_path,
+     rebase_path("//buildtools/third_party/eu-strip/bin/eu-strip",
+                 root_build_dir),
+     "-o",
+diff --git tools/v8_context_snapshot/BUILD.gn tools/v8_context_snapshot/BUILD.gn
+index 6e86a54355..67dd122309 100644
+--- tools/v8_context_snapshot/BUILD.gn
++++ tools/v8_context_snapshot/BUILD.gn
+@@ -12,6 +12,36 @@ import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
+ import("//build/config/c++/c++.gni")
+ import("//build/config/compiler/compiler.gni")
+ import("//v8/gni/snapshot_toolchain.gni")
++import("//build/config/sysroot.gni")
++
++if ((is_linux || is_chromeos) && use_sysroot) {
++  # By default build against a sysroot image downloaded from Cloud Storage
++  # during gclient runhooks.
++  if (current_cpu == "x64") {
++    v8_snapshot_sysroot = "$target_sysroot_dir/debian_sid_amd64-sysroot"
++    v8_snapshot_system_libdir = "lib/x86_64-linux-gnu"
++  } else if (current_cpu == "x86") {
++    v8_snapshot_sysroot = "$target_sysroot_dir/debian_sid_i386-sysroot"
++    v8_snapshot_system_libdir = "lib/i386-linux-gnu"
++  } else if (current_cpu == "mipsel") {
++    v8_snapshot_sysroot = "$target_sysroot_dir/debian_sid_i386-sysroot"
++    v8_snapshot_system_libdir = "lib/i386-linux-gnu"
++  } else if (current_cpu == "mips64el") {
++    v8_snapshot_sysroot = "$target_sysroot_dir/debian_sid_amd64-sysroot"
++    v8_snapshot_system_libdir = "lib/x86_64-linux-gnu"
++  } else if (current_cpu == "arm") {
++    v8_snapshot_sysroot = "$target_sysroot_dir/debian_sid_i386-sysroot"
++    v8_snapshot_system_libdir = "lib/i386-linux-gnu"
++  } else if (current_cpu == "arm64") {
++    v8_snapshot_sysroot = "$target_sysroot_dir/debian_sid_amd64-sysroot"
++    v8_snapshot_system_libdir = "lib/x86_64-linux-gnu"
++  } else {
++    assert(false, "No linux v8_snapshot_sysroot for cpu: $target_cpu")
++  }
++} else {
++    v8_snapshot_sysroot = target_sysroot
++    v8_snapshot_system_libdir = target_system_libdir
++}
+ 
+ if (is_android) {
+   import("//build/config/android/rules.gni")
+@@ -55,7 +85,9 @@ if (use_v8_context_snapshot) {
+     output_file = "$root_out_dir/$v8_context_snapshot_filename"
+     output_path = rebase_path(output_file, root_build_dir)
+ 
++    library_path = rebase_path(v8_snapshot_sysroot + "/" + v8_snapshot_system_libdir, root_build_dir) + ":" + rebase_path(v8_snapshot_sysroot + "/usr/" + v8_snapshot_system_libdir, root_build_dir)
+     args = [
++      library_path,
+       "./" + rebase_path(
+               get_label_info(
+                       ":v8_context_snapshot_generator($v8_snapshot_toolchain)",
