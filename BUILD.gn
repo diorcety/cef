@@ -1182,14 +1182,14 @@ static_library("libcef_static") {
           # Part of //ui/aura:test_support which is testingonly.
           "//ui/aura/test/aura_test_utils.cc",
           "//ui/aura/test/aura_test_utils.h",
-          # Part of //ui/events:test_support which is testingonly.
-          "//ui/events/test/x11_event_waiter.cc",
-          "//ui/events/test/x11_event_waiter.h",
         ]
 
         if (use_x11) {
           sources += [
             # Support for UI input events.
+            # Part of //ui/events:test_support which is testingonly.
+            "//ui/events/test/x11_event_waiter.cc",
+            "//ui/events/test/x11_event_waiter.h",
             # Part of //ui/base/x:test_support which is testingonly.
             "//ui/base/x/test/x11_ui_controls_test_helper.cc",
             "//ui/base/x/test/x11_ui_controls_test_helper.h",

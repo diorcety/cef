@@ -28,7 +28,7 @@ cef_cursor_handle_t ToCursorHandle(scoped_refptr<ui::PlatformCursor> cursor) {
   return static_cast<cef_cursor_handle_t>(
       ui::X11Cursor::FromPlatformCursor(cursor)->xcursor());
 #elif defined(USE_OZONE)
-  return static_cast<cef_cursor_handle_t>(
+  return reinterpret_cast<cef_cursor_handle_t>(
       ui::BitmapCursorOzone::FromPlatformCursor(cursor)->platform_data());
 #else
   return 0;
