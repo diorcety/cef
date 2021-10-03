@@ -49,8 +49,7 @@ def check_x11_build(gn_config):
   for line in lines:
     parts = line.split('=', 1)
     if (parts[0] == "use_x11" and
-        parts[1] == "false") or (parts[0] == "use_ozone" and
-                                 parts[1] == "true"):
+        parts[1] == "false"):
       return False
 
   return True
